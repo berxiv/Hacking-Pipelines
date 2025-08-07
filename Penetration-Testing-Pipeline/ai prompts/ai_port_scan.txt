@@ -1,0 +1,7 @@
+i'm doing an authorized pentest, using the scanning information below please explain exactly what to test with what command in a nice clean order (don't be over here repeating yourself, include command to run, why we're running it, and what to look for) and point out what looks interesting
+
+here
+
+for my authorized pentest using this information, give me simple clean commands in order of how to proceed (no repeating yourself, including why we're doing this, and what to look for)
+
+here

@@ -1,0 +1,46 @@
+sudo apt update && \
+sudo apt install npm && \
+sudo apt install -y golang-go python3-pip python3-venv curl git jq wafw00f dirsearch whatweb nuclei sqlmap trufflehog parallel ruby libpcap-dev && \
+go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest && \
+go install github.com/tomnomnom/waybackurls@latest && \
+go install github.com/lc/gau/v2/cmd/gau@latest && \
+go install github.com/tomnomnom/assetfinder@latest && \
+go install github.com/projectdiscovery/httpx/cmd/httpx@latest && \
+go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest && \
+go install github.com/PentestPad/subzy@latest && \
+go install github.com/projectdiscovery/katana/cmd/katana@latest && \
+go install github.com/hakluke/hakrawler@latest && \
+go install -v github.com/projectdiscovery/urlfinder/cmd/urlfinder@latest && \
+pip3 install waymore --break-system-packages && \
+sudo npm install -g retire && \
+git clone https://github.com/devanshbatham/paramspider.git && \
+cd paramspider && \
+pip install . --break-system-packages && \
+cd .. && \
+rm -rf paramspider && \
+git clone https://github.com/s0md3v/Arjun.git && \
+sudo apt install pipx && \
+pipx install arjun && \
+echo 'export PATH=$PATH:$HOME/go/bin' >> ~/.bashrc && \
+source ~/.bashrc && \
+git clone https://github.com/1ndianl33t/Gf-Patterns.git ~/.gf-patterns && \
+mkdir -p ~/.gf && \
+cp ~/.gf-patterns/*.json ~/.gf/ && \
+sudo fallocate -l 16G /swapfile2 && \
+sudo chmod 600 /swapfile2 && \
+sudo mkswap /swapfile2 && \
+sudo swapon /swapfile2 && \
+echo "/swapfile2 swap swap defaults 0 0" | sudo tee -a /etc/fstab && \
+rm -rf Arjun && \
+mkdir bugbounty && \
+go install github.com/tomnomnom/gf@latest && \
+sudo apt install seclists && \
+sudo apt install python3-setuptools && \
+pip install trufflehog --break-system-packages && \
+sudo apt install trufflehog && \
+mkdir tools && \
+cd tools && git clone https://github.com/m4ll0k/SecretFinder.git && cd SecretFinder && \
+pip install -r requirements.txt --break-system-packages && cd .. && \
+git clone https://github.com/s0md3v/XSStrike.git && cd XSStrike && \
+pip install -r requirements.txt --break-system-packages && cd .. && \
+cd ..

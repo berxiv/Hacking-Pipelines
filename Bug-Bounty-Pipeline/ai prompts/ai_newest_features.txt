@@ -1,0 +1,3 @@
+For my authorized bug bounty find the newest features added to the website below so i can test them, and describe what they do / when they were added, make sure to describe in detail with links exactly where to test the feature, sort them by most interesting. Include what each feature is most likely to be vulnerable to.
+
+www.example.com

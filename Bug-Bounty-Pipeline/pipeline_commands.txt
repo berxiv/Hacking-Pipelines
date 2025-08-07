@@ -1,0 +1,137 @@
+ _____                                     _   _             
+|  ___|                                   | | (_)            
+| |__ _ __  _   _ _ __ ___   ___ _ __ __ _| |_ _  ___  _ __  
+|  __| '_ \| | | | '_ ` _ \ / _ \ '__/ _` | __| |/ _ \| '_ \ 
+| |__| | | | |_| | | | | | |  __/ | | (_| | |_| | (_) | | | |
+\____/_| |_|\__,_|_| |_| |_|\___|_|  \__,_|\__|_|\___/|_| |_|
+                                                             
+                                                             
+
+PRIMARY ENUMERATION COMMANDS (FIND SUBDOMAINS, JS FILES, JSON FILES, 403 SUBDOMAINS, NOWAF SUBDOMAINS, TECHNOLOGY, FIND PARAMETERS / FULL URLS FOR EACH SUBDOMAIN / SECRETS / SSRF, XSS, SQLI CANDIDATES / AND OUTDATED JS MODULES)
+TARGET="target.com" ; \
+TARGETFULL="https://$TARGET" ; \
+subfinder -d $TARGET >> subs.txt ; \
+waybackurls $TARGET >> subs.txt ; \
+gau $TARGET >> subs.txt ; \
+assetfinder --subs-only $TARGET >> subs.txt ; \
+echo $TARGETFULL | hakrawler -subs >> subs.txt ; \
+urlfinder -d $TARGET -all >> subs.txt ; \
+waymore -i $TARGET -oU waymore.txt -mode U && cat waymore.txt >> subs.txt && rm waymore.txt ; \
+sort -u subs.txt -o subs.txt ; \
+~/go/bin/httpx -l subs.txt -o all_subdomains.txt ; \
+rm subs.txt ; \
+grep -Eo '([a-z0-9.-]+\.)?target\.com' all_subdomains.txt | sort -u > clean_subdomains.txt ; \
+~/go/bin/httpx -l clean_subdomains.txt -p 80,443,3000,5000,8000,8080,8443,10000,9090 -title -tech-detect -status-code -server -ip >> technologies.txt ; \
+grep -Ei '\.js($|\?)' all_subdomains.txt > js_urls.txt ; \
+grep -Ei '\.json($|\?)' all_subdomains.txt > json_urls.txt ; \
+katana -list clean_subdomains.txt -js-crawl -o js_urls2.txt ; \
+grep -Ei '\.js($|\?)' js_urls2.txt > js_urls2_clean.txt ; \
+cat js_urls.txt js_urls2_clean.txt >> js_urls.txt ; \
+rm js_urls2.txt js_urls2_clean.txt ; \
+sort -u js_urls.txt -o js_urls.txt
+
+~/go/bin/httpx -l clean_subdomains.txt -tech-detect >> technologies.txt ; \
+cat clean_subdomains.txt | parallel -j10 'echo "[*] Testing {}" >&2; wafw00f {} 2>/dev/null | grep -q "No WAF detected" && echo {}' > nowaf_subdomains.txt ; \
+cat all_subdomains.txt | parallel -j10 'status=$(curl -o /dev/null -s -w "%{http_code}" -k -L {}); if [ "$status" = "403" ]; then echo {}; fi' > 403_subdomains.txt ; \
+mkdir -p ~/bugbounty/reports ; \
+cat 403_subdomains.txt | xargs -P10 -I{} bash -c 'PYTHONWARNINGS="ignore" dirsearch -u "{}" -e php,html,js,json,txt,log,zip,conf,sql -w /usr/share/seclists/Discovery/Web-Content/raft-medium-words.txt --threads 30 --timeout 10 --retries 2 --follow-redirects --full-url --output ~/bugbounty/reports/$(echo "{}" | sed "s|https\?://||;s|/|_|g").txt' ; \
+cat technologies.txt | sed 's/\x1b\[[0-9;]*m//g' | grep '\[403' | awk '{print $1}' > 403_subdomains.txt ; \
+sort -u 403_subdomains.txt -o 403_subdomains.txt
+
+paramspider -l clean_subdomains.txt && cat results/*.txt > param_urls.txt ; \
+sort -u param_urls.txt -o param_urls.txt ; \
+python3 /home/c/tools/SecretFinder/SecretFinder.py -i all_subdomains.txt -o possible_secrets_secretfinder.html ; \
+grep -oP '(?<=<span style="background-color:yellow">).*?(?=</span>)' possible_secrets_secretfinder.html | sed -E "s/^(\['|'\]|\['')//g; s/']$//g" | grep -vE '^\s*$|^\[\]$' > possible_secrets.txt ; \
+rm possible_secrets_secretfinder.html ; \
+trufflehog filesystem ./ --json > possible_secrets_trufflehog.json ; \
+cat param_urls.txt | gf xss > xss_candidates.txt && cat param_urls.txt | gf sqli > sqli_candidates.txt ; \
+cat param_urls.txt | gf ssrf > ssrf_candidates.txt ; \
+(mkdir -p js_tmp && cd js_tmp && xargs -n 1 -P 10 curl -sO < ../js_urls.txt && retire --path .) 2>&1 | tee retire_js_results.txt && rm -rf js_tmp ; \
+rm -rf reports results ; \
+find . -maxdepth 1 -type f -empty -delete
+
+FIND ALL PORTS
+cat clean_subdomains.txt | httpx -ports 80,81,3000,3001,443,8080,8000,8888,8443,10000,9000,9443,4443,2075,2076,6443,3868,3366,9091,5900 -threads 200
+
+https://beautifier.io/
+https://nitinyadav00.github.io/Bug-Bounty-Search-Engine/
+
+
+ _____           _       _ _        _   _             
+|  ___|         | |     (_) |      | | (_)            
+| |____  ___ __ | | ___  _| |_ __ _| |_ _  ___  _ __  
+|  __\ \/ / '_ \| |/ _ \| | __/ _` | __| |/ _ \| '_ \ 
+| |___>  <| |_) | | (_) | | || (_| | |_| | (_) | | | |
+\____/_/\_\ .__/|_|\___/|_|\__\__,_|\__|_|\___/|_| |_|
+          | |                                         
+          |_|                                         
+
+POSSIBLE SCANS WITH NUCLEI
+nuclei -l all_subdomains.txt -severity medium,high,critical -c 50 -rate-limit 100 -o nuclei_scan.txt
+
+EXPLOIT XXS, SQLI, AND SSRF
+while read url; do python3 /home/c/tools/XSStrike/xsstrike.py -u "$url"; done < xss_candidates.txt
+sqlmap -m sqli_candidates.txt --batch
+cat ssrf_candidates.txt | openredirex -p openredirex/payloads.txt -k "FUZZ" -c 50
+
+EXPLOIT SUBDOMAIN TAKEOVER
+subzy run --targets clean_subdomains.txt
+
+POSSIBLE OPEN S3 BUCKETS
+aws s3 ls s3://assets-ssl.example.com --no-sign-request
+
+USEFUL DIRECTORY BRUTEFORCING COMMANDS / COMMANDS TO DIRECTORY BRUTEFORCE ALL FOUND SUBDOMAINS
+dirsearch -u https://example.com/ -w /usr/share/seclists/Discovery/Web-Content/common.txt -e php,js,jpg,png,html,json,txt -t 50 --follow-redirects
+
+while read url; do dirsearch -u https://$url/ -w /usr/share/seclists/Discovery/Web-Content/common.txt -e php,js,jpg,png,html,json,txt -t 50 --follow-redirects; done < clean_subdomains.txt
+
+while read url; do dirsearch -u "$url/" -w /usr/share/seclists/Discovery/Web-Content/common.txt -e php,js,jpg,png,html,json,txt -H "Referer: https://google.com" -H "X-Forwarded-For: 127.0.0.1" --random-agent --delay 0.5 --max-rate 20 --threads 50 --timeout 10 --exclude-sizes 0 --follow-redirects; done < clean_subdomains.txt
+
+AI ASSISTANCE PROMPT GENERATORS
+cat <<EOF > prompt_main.txt
+For my authorised bug bounty, list the most interesting findings below and what to look into also guide me step by step on exactly what commands to run to test and what to look out for and explain in maximum detail why im running these commands. Also at the end list the specific what you think are important subdomains I should dirsearch to find endpoints to test (include what endpoints you'll think i'll likely find and why if there are clues).
+## All Clean Subdomains
+$( [ -f clean_subdomains.txt ] && cat clean_subdomains.txt )
+## Technologies
+$( [ -f technologies.txt ] && cat technologies.txt )
+## All Parameters
+$( [ -f param_urls.txt ] && cat param_urls.txt )
+## Detected Possible Secrets
+$( [ -f possible_secrets.txt ] && cat possible_secrets.txt )
+## Nuclei Results
+$( [ -f nuclei_scan.txt ] && cat nuclei_scan.txt )
+## No WAF Subdomains
+$( [ -f nowaf_subdomains.txt ] && cat nowaf_subdomains.txt )
+## 403 Subdomains
+$( [ -f 403_subdomains.txt ] && cat 403_subdomains.txt )
+## Parameter URLs
+$( [ -f param_urls.txt ] && cat param_urls.txt )
+## Retire JS Results
+$( [ -f retire_js_results.txt ] && cat retire_js_results.txt )
+EOF
+
+cat <<EOF > prompt_diagram.txt
+For my authorized bug bounty shown below, I want you to fully map out the website: code, endpoints, and technologies. And try to rebuild their backend. Put this all into a PlantUML code format where I can just plop it into a simple state diagram and it will draw it out for me, for example using: @startuml, State1 --> State2 @enduml. (make sure for every endpoint you include a description of what it's probably for, what status code it responds with and why)
+## All Clean Subdomains
+$( [ -f clean_subdomains.txt ] && cat clean_subdomains.txt )
+## Technologies
+$( [ -f technologies.txt ] && cat technologies.txt )
+## All Parameters
+$( [ -f param_urls.txt ] && cat param_urls.txt )
+## Detected Possible Secrets
+$( [ -f possible_secrets.txt ] && cat possible_secrets.txt )
+## Nuclei Results
+$( [ -f nuclei_scan.txt ] && cat nuclei_scan.txt )
+## No WAF Subdomains
+$( [ -f nowaf_subdomains.txt ] && cat nowaf_subdomains.txt )
+## 403 Subdomains
+$( [ -f 403_subdomains.txt ] && cat 403_subdomains.txt )
+## Parameter URLs
+$( [ -f param_urls.txt ] && cat param_urls.txt )
+## Retire JS Results
+$( [ -f retire_js_results.txt ] && cat retire_js_results.txt )
+EOF
+
+explorer.exe .
+
+https://plantuml.com/state-diagram

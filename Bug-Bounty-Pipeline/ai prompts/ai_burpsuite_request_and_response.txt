@@ -1,0 +1,6 @@
+Below is the request and response used for an authorised bug bounty i'm performing, please give maximum in detail instructions on everything to test for with code included and exactly what to do to find any possible vulnerability here (make sure to explain exactly what i'm doing at each step and why too in detail, make sure to include what to expect / and what to look out for in every test). Also include what full strings i should go back into burpsuite's http history and look alternatives for if this applies. Also if you can try to identify if this request poses any risk at all / rate it, also try to identify how the requests what user is making the request / if it even does.
+
+REQUEST:
+
+
+RESPONSE:

