@@ -1,0 +1,138 @@
+  _                 _         _____                 
+ | |               (_)       |  __ \                
+ | |     ___   __ _ _ _ __   | |__) |_ _  __ _  ___ 
+ | |    / _ \ / _` | | '_ \  |  ___/ _` |/ _` |/ _ \
+ | |___| (_) | (_| | | | | | | |  | (_| | (_| |  __/
+ |______\___/ \__, |_|_| |_| |_|   \__,_|\__, |\___|
+               __/ |                      __/ |     
+              |___/                      |___/      
+
+
+
+=============================================
+[1] INPUT VALIDATION & SANITIZATION CHECKS
+=============================================
+✅ **SQL Injection**  
+   - Steps:  
+     1. Enter `' OR 1=1--` in username/password.  
+     2. Try `admin'--` as username with any password.  
+     3. Use time-based payloads: `admin' AND SLEEP(5)--`.  
+   - Look for: Delayed responses, bypassed auth, or DB errors.  
+
+✅ **XSS (Cross-Site Scripting)**  
+   - Steps:  
+     1. Enter `<script>alert(1)</script>` in username/password.  
+     2. Test DOM-based XSS via URL params: `?error=<img src=x onerror=alert(1)>`.  
+   - Look for: Script execution or reflected input in error messages.  
+
+✅ **HTML/JS Injection**  
+   - Steps:  
+     1. Submit `<b>test</b>` or `javascript:alert(1)` in inputs.  
+   - Look for: Rendered bold text or JS execution.  
+
+✅ **Command Injection**  
+   - Steps:  
+     1. Enter `; ls /` or `| dir` in inputs (if backend uses shell).  
+   - Look for: Server errors or unusual responses.  
+
+=============================================
+[2] AUTHENTICATION BYPASS CHECKS  
+=============================================
+✅ **Weak Password Policy**  
+   - Steps:  
+     1. Set password to `123456` or `password`.  
+   - Look for: Lack of complexity requirements.  
+
+✅ **Account Enumeration**  
+   - Steps:  
+     1. Enter valid email + wrong password.  
+     2. Enter invalid email + any password.  
+   - Look for: Differences in error messages (e.g., "Invalid user" vs. "Wrong password").  
+
+✅ **2FA Bypass**  
+   - Steps:  
+     1. After OTP request, tamper with `?otp=0` or resend OTP to attacker’s email.  
+   - Look for: Missing rate limits or OTP brute-force.  
+
+✅ **Remember Me Token Hijacking**  
+   - Steps:  
+     1. Log in with "Remember Me" checked.  
+     2. Decode the stored cookie (e.g., JWT or base64).  
+   - Look for: Predictable tokens or lack of expiration.  
+
+=============================================
+[3] SESSION MANAGEMENT CHECKS  
+=============================================
+✅ **Session Fixation**  
+   - Steps:  
+     1. Set a cookie (`PHPSESSID=attacker`) before login.  
+     2. Log in and check if session ID remains the same.  
+   - Look for: Session not regenerated post-auth.  
+
+✅ **Concurrent Sessions**  
+   - Steps:  
+     1. Log in from two browsers/devices.  
+   - Look for: Both sessions active (should invalidate old ones).  
+
+✅ **Cookie Attributes**  
+   - Steps:  
+     1. Check for `Secure`, `HttpOnly`, `SameSite` flags.  
+   - Look for: Missing protections (e.g., session cookies sent over HTTP).  
+
+=============================================
+[4] BUSINESS LOGIC FLAWS  
+=============================================
+✅ **Unlimited Password Attempts**  
+   - Steps:  
+     1. Brute-force passwords with Burp Intruder.  
+   - Look for: Lack of CAPTCHA or account lockout.  
+
+✅ **Password Reset Abuse**  
+   - Steps:  
+     1. Request reset for victim’s email, intercept token.  
+     2. Use token after victim resets password.  
+   - Look for: Token reuse or weak expiration.  
+
+✅ **Hidden Parameter Tampering**  
+   - Steps:  
+     1. Intercept request, add `&admin=true` or `&role=admin`.  
+   - Look for: Privilege escalation.  
+
+=============================================
+[5] MISCELLANEOUS & CREATIVE CHECKS  
+=============================================
+✅ **HTTP Parameter Pollution**  
+   - Steps:  
+     1. Send `?email=test@test.com&email=attacker@evil.com`.  
+   - Look for: Backend processing the last/first parameter.  
+
+✅ **Cache Poisoning**  
+   - Steps:  
+     1. Add `X-Forwarded-Host: evil.com` to headers.  
+   - Look for: Cached malicious content.  
+
+✅ **CSRF (Cross-Site Request Forgery)**  
+   - Steps:  
+     1. Check if login form lacks CSRF tokens.  
+     2. Craft a fake form auto-submitting to target.  
+   - Look for: Token absence or reuse.  
+
+✅ **Rate Limiting Bypass**  
+   - Steps:  
+     1. Rotate IPs/X-Forwarded-For headers in brute-force.  
+   - Look for: Missing IP-based rate limits.  
+
+✅ **Subdomain Takeover via "Forgot Password"**  
+   - Steps:  
+     1. Check if `passwordreset.target.com` is unclaimed.  
+   - Look for: Hostile subdomain takeover potential.  
+
+✅ **Autocomplete Enabled**  
+   - Steps:  
+     1. Check if `<input autocomplete="off">` is missing.  
+   - Look for: Browser saving credentials.  
+
+✅ **Error Leakage**  
+   - Steps:  
+     1. Trigger errors (e.g.,超大 JSON payload).  
+   - Look for: Stack traces or DB dumps in responses.  
