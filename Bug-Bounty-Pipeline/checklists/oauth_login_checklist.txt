@@ -1,0 +1,189 @@
+   ____               _   _       _                 _       
+  / __ \   /\        | | | |     | |               (_)      
+ | |  | | /  \  _   _| |_| |__   | |     ___   __ _ _ _ __  
+ | |  | |/ /\ \| | | | __| '_ \  | |    / _ \ / _` | | '_ \ 
+ | |__| / ____ \ |_| | |_| | | | | |___| (_) | (_| | | | | |
+  \____/_/    \_\__,_|\__|_| |_| |______\___/ \__, |_|_| |_|
+                                               __/ |        
+                                              |___/         
+
+
+
+=============================================
+[1] REDIRECT URI VALIDATION
+=============================================
+✅ **Unvalidated Redirect URI**
+   - Steps:
+     1. Intercept OAuth `redirect_uri` parameter.
+     2. Replace with `https://attacker.com/cb`.
+     3. Complete login.
+   - Look for: Auth code or token sent to attacker URI.
+
+✅ **Wildcard / Partial Matching**
+   - Steps:
+     1. Change redirect to `https://sub.attacker.example.com`.
+     2. Try path manipulations: `/callback/../evil`.
+   - Look for: Acceptance of non-registered URIs.
+
+✅ **Double URL Encoding**
+   - Steps:
+     1. Encode URI twice (`%252F` instead of `/`).
+   - Look for: Server normalizing to attacker-controlled domain.
+
+✅ **HTTP Instead of HTTPS**
+   - Steps:
+     1. Replace `https://` with `http://` in `redirect_uri`.
+   - Look for: Insecure scheme accepted.
+
+=============================================
+[2] STATE PARAMETER SECURITY
+=============================================
+✅ **Missing State**
+   - Steps:
+     1. Remove `state` parameter from authorize request.
+   - Look for: Login completes — CSRF possible.
+
+✅ **Predictable State**
+   - Steps:
+     1. Capture multiple `state` values.
+     2. Check if sequential/timestamp-based.
+   - Look for: Guessable values.
+
+✅ **State Replay**
+   - Steps:
+     1. Use victim’s `state` value with attacker’s auth code.
+   - Look for: Session binding bypass.
+
+=============================================
+[3] AUTHORIZATION CODE EXCHANGE
+=============================================
+✅ **Code Reuse**
+   - Steps:
+     1. Redeem the same `code` twice at token endpoint.
+   - Look for: Token issued both times.
+
+✅ **Code Not Bound to Client**
+   - Steps:
+     1. Get `code` for Client A.
+     2. Redeem with Client B.
+   - Look for: Acceptance by wrong client.
+
+✅ **PKCE Missing**
+   - Steps:
+     1. Send no `code_challenge`.
+     2. Redeem without `code_verifier`.
+   - Look for: Code still redeemable.
+
+✅ **Wrong Redirect in Exchange**
+   - Steps:
+     1. Use correct code but change `redirect_uri` in token POST.
+   - Look for: Token still issued.
+
+=============================================
+[4] TOKEN HANDLING
+=============================================
+✅ **Tokens in URL**
+   - Steps:
+     1. Inspect callback URL for `access_token` or `id_token`.
+   - Look for: Tokens in query/fragment.
+
+✅ **Insecure Storage**
+   - Steps:
+     1. Check localStorage, sessionStorage, cookies.
+   - Look for: Tokens stored without HttpOnly/Secure.
+
+✅ **Missing Scope Restrictions**
+   - Steps:
+     1. Decode JWT, inspect `scope`.
+   - Look for: Overly broad permissions.
+
+✅ **Missing Audience Check**
+   - Steps:
+     1. Decode JWT `aud` claim.
+   - Look for: Token intended for another client.
+
+✅ **Refresh Token Exposure**
+   - Steps:
+     1. Inspect browser storage for `refresh_token`.
+   - Look for: Long-lived token in client.
+
+=============================================
+[5] OPENID CONNECT SPECIFIC
+=============================================
+✅ **Nonce Missing or Not Verified**
+   - Steps:
+     1. Remove `nonce` from request.
+     2. Replay old `id_token`.
+   - Look for: Acceptance without matching nonce.
+
+✅ **Invalid `iss` or `aud`**
+   - Steps:
+     1. Modify JWT claims.
+   - Look for: Token still accepted.
+
+✅ **alg:none or Algorithm Downgrade**
+   - Steps:
+     1. Change JWT `alg` to `none` and sign nothing.
+   - Look for: Accepted token.
+
+=============================================
+[6] CORS, CSRF & CLICKJACKING
+=============================================
+✅ **Login CSRF**
+   - Steps:
+     1. Remove/modify CSRF token in form_post.
+   - Look for: Login still succeeds.
+
+✅ **CORS Misconfig**
+   - Steps:
+     1. From attacker.com, send fetch to token endpoint.
+   - Look for: `Access-Control-Allow-Origin: *` with credentials.
+
+✅ **Clickjacking**
+   - Steps:
+     1. Load login page in an iframe.
+   - Look for: No X-Frame-Options or CSP frame-ancestors.
+
+=============================================
+[7] BUSINESS LOGIC & ACCOUNT LINKING
+=============================================
+✅ **Account Linking without Verification**
+   - Steps:
+     1. Sign in with attacker Google account using victim’s email.
+   - Look for: Auto-linked account.
+
+✅ **Auto-provisioning Risk**
+   - Steps:
+     1. Login with unregistered Google account.
+   - Look for: Full account created with default perms.
+
+=============================================
+[8] ERROR HANDLING & INFO LEAK
+=============================================
+✅ **Verbose Errors**
+   - Steps:
+     1. Use bad `client_id` or `redirect_uri`.
+   - Look for: Stack traces, debug info.
+
+✅ **Code/Token in Error Pages**
+   - Steps:
+     1. Trigger callback failure.
+   - Look for: Sensitive data in response.
+
+=============================================
+[9] ADVANCED CREATIVE TESTS
+=============================================
+✅ **Intermediate Redirect Interception**
+   - Steps:
+     1. Chain registered URI to attacker site.
+   - Look for: Auth code leakage mid-flow.
+
+✅ **OpenID Discovery Manipulation**
+   - Steps:
+     1. If discovery URL is changeable, point to attacker JWKS.
+   - Look for: Server accepting forged keys.
+
+✅ **prompt=none Silent Login Abuse**
+   - Steps:
+     1. Use `prompt=none` in iframe for logged-in Google user.
+   - Look for: Automatic login without interaction.
