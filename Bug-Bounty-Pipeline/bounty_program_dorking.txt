@@ -1,0 +1,5 @@
+filetype:pdf "vulnerability disclosure policy" OR "security policy" OR "responsible disclosure"
+
+inurl:bug-bounty OR inurl:"security/research" OR inurl:responsible-disclosure "reward" OR "program"
+
+(filetype:pdf OR inurl:bug-bounty OR inurl:security) "vulnerability disclosure" OR "responsible disclosure"
