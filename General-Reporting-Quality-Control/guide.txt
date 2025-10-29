@@ -1,0 +1,5 @@
+1. Outline what's wrong, why, and where (1 paragraph or less)
+2. List atleast 2 rewarded bounties paid out online (not marked informational) that are 1:1 with what you're reporting here
+3. Simple numbered step by step guide on how to replicate
+4. Simple suggestions for how to remediate
+5. Attach proof of concept screenshot(s) and video(s)
